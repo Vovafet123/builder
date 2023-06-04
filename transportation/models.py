@@ -1,11 +1,11 @@
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 
 
 class TransportStatus(models.TextChoices):
-    WAIT = ('WAIT', 'WAIT')
-    IN_TRANSIT = ('IN_TRANSIT', 'IN_TRANSIT')
-    RETURN = ('RETURN', 'RETURN')
+    WAIT = ('WAIT', 'Ожидает')
+    IN_TRANSIT = ('IN_TRANSIT', 'В пути')
+    RETURN = ('RETURN', 'Возвращается')
 
 
 class FlightStatus(models.TextChoices):
@@ -17,12 +17,12 @@ class FlightStatus(models.TextChoices):
 
 
 class Transport(models.Model):
-    model = models.CharField(max_length=100)
-    number_and_region = models.CharField(max_length=9, unique=True)
-    max_load_capacity = models.PositiveSmallIntegerField()
-    max_loading_volume = models.PositiveSmallIntegerField()
-    status = models.CharField(max_length=255, choices=TransportStatus.choices)
-    place = models.CharField(max_length=255)
+    model = models.CharField("Модель", max_length=100)
+    number_and_region = models.CharField("Номер и регион", max_length=9, unique=True)
+    max_load_capacity = models.PositiveSmallIntegerField("Максимальный вес")
+    max_loading_volume = models.PositiveSmallIntegerField("Максимальный объем")
+    status = models.CharField("Статус", max_length=255, choices=TransportStatus.choices)
+    place = models.CharField("Место", max_length=255)
     create_datetime = models.DateTimeField(auto_now_add=True)
     update_datetime = models.DateTimeField(auto_now=True)
 
@@ -37,12 +37,14 @@ class Transport(models.Model):
 
 
 class Product(models.Model):
-    name = models.CharField(max_length=255)
-    manufacturer = models.CharField(max_length=255)  # Производитель
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    quantity = models.PositiveSmallIntegerField()
+    name = models.CharField("Наименование", max_length=255)
+    manufacturer = models.CharField("Производитель", max_length=255)  # Производитель
+    price = models.DecimalField("Цена", max_digits=10, decimal_places=2)
     create_datetime = models.DateTimeField(auto_now_add=True)
     update_datetime = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'{self.name}, {self.manufacturer}'
 
     class Meta:
         models.CheckConstraint(check=Q(price__gte=0.00), name='price_constraint')
@@ -52,12 +54,15 @@ class Product(models.Model):
 
 
 class Stock(models.Model):
-    city = models.CharField(max_length=255)
-    address = models.CharField(max_length=255)
-    free_volume = models.PositiveSmallIntegerField()
+    city = models.CharField("Город", max_length=255)
+    address = models.CharField("Адрес", max_length=255)
+    free_volume = models.PositiveSmallIntegerField("свободный объем")
     products = models.ManyToManyField(Product, through='StockProduct')
     create_datetime = models.DateTimeField(auto_now_add=True)
     update_datetime = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'{self.city}, {self.address}'
 
     class Meta:
         unique_together = ('city', 'address',)
@@ -67,10 +72,10 @@ class Stock(models.Model):
 
 
 class Flight(models.Model):
-    source = models.CharField(max_length=255)  # Город отправки
-    destination = models.CharField(max_length=255)  # Город доставки
-    status = models.CharField(max_length=255, choices=FlightStatus.choices, default=FlightStatus.FREE, blank=True)
-    revenue = models.DecimalField(max_digits=10, decimal_places=2)  # Выручка
+    source = models.CharField("Город отправки", max_length=255)  # Город отправки
+    destination = models.CharField("Город доставки", max_length=255)  # Город доставки
+    status = models.CharField("Статус", max_length=255, choices=FlightStatus.choices, default=FlightStatus.FREE, blank=True)
+    revenue = models.DecimalField("Выручка", max_digits=10, decimal_places=2)  # Выручка
     create_datetime = models.DateTimeField(auto_now_add=True)
     update_datetime = models.DateTimeField(auto_now=True)
 
@@ -80,6 +85,12 @@ class Flight(models.Model):
         verbose_name = "Рейс"
         verbose_name_plural = "Рейсы"
 
+    # def save(self, *args, **kwargs):
+    #     with transaction.atomic():
+    #         super().save(*args, **kwargs)
+
+
+
 
 class StockProduct(models.Model):
     stock = models.ForeignKey(Stock, on_delete=models.CASCADE)
@@ -88,3 +99,6 @@ class StockProduct(models.Model):
 
     class Meta:
         unique_together = ('product', 'stock',)
+
+        verbose_name = "Склад и товары"
+        verbose_name_plural = "Склады и товары"
